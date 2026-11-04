@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/lib/use-profile";
-import { BOX, GY, GRAVITY, H, MAX_LEVEL, PH, PW, SKINS, W, isSkin, levelAt, overlap, step, touches, type Body, type Input, type Skin } from "@/lib/game";
+import { BOX, GY, GRAVITY, H, MAX_LEVEL, PH, PW, SHIELD_MS, SKINS, W, hazardCheck, isSkin, levelAt, overlap, step, touches, type Body, type Input, type Skin } from "@/lib/game";
 import { savedSkin } from "@/components/Character";
 
 type Role = "qifil" | "hafil";
@@ -58,6 +58,7 @@ function Play() {
   const [chatOpen, setChatOpen] = useState(false);
   const [text, setText] = useState("");
   const [toast, setToast] = useState("");
+  const [shieldOn, setShieldOn] = useState(false);
   const g = useRef({
     level: 1,
     mine: { x: 0, y: 0, vx: 0, vy: 0, onGround: false } as Body,
@@ -70,6 +71,8 @@ function Play() {
     button: false,
     keyBy: "" as "" | Role,
     winning: false,
+    shield: 0,
+    shieldOther: 0,
     boxes: [] as { x: number; y: number; vy: number; color: "pink" | "biru"; lock: number; moved: boolean }[],
     ext: [] as number[],
   });
@@ -82,6 +85,7 @@ function Play() {
     s.boxes = L.boxes.map((b) => ({ ...b, vy: 0, lock: 0, moved: false }));
     s.ext = L.bridges.map(() => 0);
     s.level = n; s.button = false; s.keyBy = ""; s.winning = false;
+    s.shield = 0; s.shieldOther = 0; setShieldOn(false);
     s.mine = { x: L.spawn[role === "qifil" ? 0 : 1], y: 560, vx: 0, vy: 0, onGround: false };
     s.safe = { x: s.mine.x, y: 560 };
     setLevel(n);
@@ -108,7 +112,7 @@ function Play() {
     })
       .on("broadcast", { event: "pos" }, ({ payload }) => { s.theirs.tx = payload.x; s.theirs.ty = payload.y; if (s.theirs.x < -50) { s.theirs.x = payload.x; s.theirs.y = payload.y; } })
       .on("broadcast", { event: "box" }, ({ payload }) => { const b = s.boxes[payload.i]; if (b && payload.l === s.level) { b.x = payload.x; b.y = payload.y; b.vy = 0; b.lock = 8; } })
-      .on("broadcast", { event: "dead" }, () => { flash(`💥 ${s.names[other]} respawn!`); })
+      .on("broadcast", { event: "dead" }, () => { flash(`💥 ${s.names[other]} respawn!`); s.shieldOther = performance.now() + SHIELD_MS; })
       .on("broadcast", { event: "button" }, () => { s.button = true; })
       .on("broadcast", { event: "key" }, ({ payload }) => { s.keyBy = payload.by; })
       .on("broadcast", { event: "level" }, ({ payload }) => { flash(`🎉 Level ${payload.done} selesai!`); resetLevel(payload.next); })
@@ -135,7 +139,7 @@ function Play() {
   // loop
   useEffect(() => {
     const ctx = canvasRef.current!.getContext("2d")!;
-    let raf = 0, lastSend = 0;
+    let raf = 0, lastSend = 0, hudShield = false;
     const loop = (t: number) => {
       const s = g.current;
       const L = levelAt(s.level);
@@ -176,17 +180,21 @@ function Play() {
       const mm = s.mine;
       if (mm.onGround && Math.abs(mm.y + PH - th.y) < 3 && mm.x + PW > th.x && mm.x < th.x + PW) mm.x += th.vx;
       const wasGround = s.mine.onGround;
+      const shielded = t < s.shield;
       s.mine = step(s.mine, input.current, [...world, ...boxRects, partnerRect], L.width);
       if (wasGround && input.current.up && s.mine.vy < 0) playJump();
       const send = (event: string, payload: object) => chan.current?.send({ type: "broadcast", event, payload });
       let m = s.mine;
-      const box = { x: m.x + 4, y: m.y + 4, w: PW - 8, h: PH - 4 };
-      if (m.y > H || L.spikes.some((k) => overlap(box, k))) {
+      const death = hazardCheck(m, L.spikes, shielded);
+      if (death.dead) {
         s.mine = m = { x: s.safe.x, y: s.safe.y - 80, vx: 0, vy: 0, onGround: false };
+        s.shield = t + SHIELD_MS;
         send("dead", {}); flash("💥 Respawn!");
       } else if (m.onGround && m.y + PH >= GY - 200 && !L.pits.some((p) => m.x + PW > p.x - 30 && m.x < p.x + p.w + 30) && !L.spikes.some((k) => Math.abs(k.x + k.w / 2 - (m.x + PW / 2)) < k.w / 2 + 70)) {
         s.safe = { x: m.x, y: m.y };
       }
+      const nowShielded = t < s.shield;
+      if (nowShielded !== hudShield) { hudShield = nowShielded; setShieldOn(nowShielded); }
       s.walk += Math.abs(m.vx) > 0.5 ? 1 : 0;
       if (t - lastSend > 50) { lastSend = t; send("pos", { x: Math.round(m.x), y: Math.round(m.y) });
         s.boxes.forEach((b, i) => { if (b.moved) { b.moved = false; send("box", { i, x: b.x, y: b.y, l: s.level }); } }); }
@@ -238,8 +246,9 @@ function Play() {
       ctx.fillStyle = "gold"; ctx.fillRect(kx, ky, 20, 8); ctx.beginPath(); ctx.arc(kx + 22, ky + 4, 7, 0, Math.PI * 2); ctx.fill();
 
       const blink = t % 5000 < 160;
-      const drawP = (who: Role, x: number, y: number, moving: boolean, air: boolean, phase: number) => {
+      const drawP = (who: Role, x: number, y: number, moving: boolean, air: boolean, phase: number, guard = false) => {
         const c = SKINS[s.skins[who]];
+        if (guard) ctx.globalAlpha = Math.floor(t / 120) % 2 ? 0.45 : 1;
         ctx.fillStyle = c.body; ctx.fillRect(x, y, PW, PH - 8);
         ctx.fillStyle = c.hat; ctx.fillRect(x - 3, y - 10, PW + 6, 12); ctx.beginPath(); ctx.arc(x + PW / 2, y - 12, 5, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = "#000";
@@ -247,6 +256,11 @@ function Play() {
         else { ctx.fillRect(x + 10, y + 12, 5, 7); ctx.fillRect(x + 25, y + 12, 5, 7); }
         const sw = air ? 3 : moving ? Math.sin(phase * 0.35) * 5 : 0;
         ctx.fillRect(x + 6 + sw, y + PH - 8, 9, 8); ctx.fillRect(x + 25 - sw, y + PH - 8, 9, 8);
+        if (guard) {
+          ctx.globalAlpha = 1;
+          ctx.strokeStyle = "#38BDF8"; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.arc(x + PW / 2, y + PH / 2 - 6, 34, 0, Math.PI * 2); ctx.stroke();
+        }
         ctx.font = "bold 13px monospace"; ctx.textAlign = "center";
         ctx.fillStyle = c.hat; ctx.fillText(s.names[who], x + PW / 2, y - 22);
         const b = s.bubbles[who];
@@ -260,8 +274,8 @@ function Play() {
         }
         ctx.textAlign = "left";
       };
-      drawP(other, th.x, th.y, Math.abs(th.vx) > 0.5, false, t / 16);
-      drawP(role, m.x, m.y, Math.abs(m.vx) > 0.5, !m.onGround, s.walk);
+      drawP(other, th.x, th.y, Math.abs(th.vx) > 0.5, false, t / 16, t < s.shieldOther);
+      drawP(role, m.x, m.y, Math.abs(m.vx) > 0.5, !m.onGround, s.walk, t < s.shield);
       ctx.restore();
       // progress bar
       ctx.fillStyle = "#eee"; ctx.fillRect(440, 690, 400, 10);
@@ -307,6 +321,7 @@ function Play() {
         <button onClick={() => navigate({ to: "/lobby" })} className="hud-btn">✕</button>
         <span className="hud-chip">Level {level}/{MAX_LEVEL}</span>
         <span className="hud-chip">{partnerHere ? `🟢 ${g.current.names[other]}` : "⏳ Menunggu teman..."}</span>
+        {shieldOn && <span className="hud-chip">🛡️ Lindung</span>}
         <button onClick={fullscreen} className="hud-btn">⛶</button>
         <button onClick={() => setChatOpen((v) => !v)} className="hud-btn">💬</button>
       </div>

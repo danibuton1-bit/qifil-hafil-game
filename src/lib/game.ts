@@ -144,3 +144,20 @@ export const isSkin = (s: unknown): s is Skin => typeof s === "string" && s in S
 
 export const touches = (b: { x: number; y: number }, px: number, py: number, dist = 40) =>
   Math.abs(b.x + PW / 2 - px) < dist && Math.abs(b.y + PH / 2 - py) < dist + 10;
+
+/** How long a freshly respawned player is protected (2.5 s). */
+export const SHIELD_MS = 2500;
+
+export type Death = { dead: true; cause: "spike" | "fall" } | { dead: false };
+
+/**
+ * Hazard check for one frame. A player who just respawned is briefly protected:
+ * spikes can't hurt them until they can move. Falling out of the world still
+ * puts them back, otherwise they would fall forever.
+ */
+export function hazardCheck(m: Body, spikes: Rect[], shielded: boolean): Death {
+  if (m.y > H) return { dead: true, cause: "fall" };
+  const box = { x: m.x + 4, y: m.y + 4, w: PW - 8, h: PH - 4 };
+  if (!shielded && spikes.some((k) => overlap(box, k))) return { dead: true, cause: "spike" };
+  return { dead: false };
+}
