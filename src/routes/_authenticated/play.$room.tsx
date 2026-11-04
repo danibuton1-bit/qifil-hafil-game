@@ -85,6 +85,7 @@ function Play() {
     s.boxes = L.boxes.map((b) => ({ ...b, vy: 0, lock: 0, moved: false }));
     s.ext = L.bridges.map(() => 0);
     s.level = n; s.button = false; s.keyBy = ""; s.winning = false;
+    s.shield = 0; s.shieldOther = 0; setShieldOn(false);
     s.mine = { x: L.spawn[role === "qifil" ? 0 : 1], y: 560, vx: 0, vy: 0, onGround: false };
     s.safe = { x: s.mine.x, y: 560 };
     setLevel(n);
@@ -111,7 +112,7 @@ function Play() {
     })
       .on("broadcast", { event: "pos" }, ({ payload }) => { s.theirs.tx = payload.x; s.theirs.ty = payload.y; if (s.theirs.x < -50) { s.theirs.x = payload.x; s.theirs.y = payload.y; } })
       .on("broadcast", { event: "box" }, ({ payload }) => { const b = s.boxes[payload.i]; if (b && payload.l === s.level) { b.x = payload.x; b.y = payload.y; b.vy = 0; b.lock = 8; } })
-      .on("broadcast", { event: "dead" }, () => { flash(`💥 ${s.names[other]} respawn!`); })
+      .on("broadcast", { event: "dead" }, () => { flash(`💥 ${s.names[other]} respawn!`); s.shieldOther = performance.now() + SHIELD_MS; })
       .on("broadcast", { event: "button" }, () => { s.button = true; })
       .on("broadcast", { event: "key" }, ({ payload }) => { s.keyBy = payload.by; })
       .on("broadcast", { event: "level" }, ({ payload }) => { flash(`🎉 Level ${payload.done} selesai!`); resetLevel(payload.next); })
