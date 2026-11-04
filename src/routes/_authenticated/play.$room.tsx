@@ -25,6 +25,25 @@ export const Route = createFileRoute("/_authenticated/play/$room")({
 
 const QUICK = ["Sini!", "Tumpuk!", "Injak tombol!", "Ambil kunci!", "Ke pintu!", "Hore! 🎉"];
 
+let audioCtx: AudioContext | null = null;
+/** Short rising "tuwing" blip, like Pico Park's jump. */
+function playJump() {
+  try {
+    audioCtx ??= new AudioContext();
+    const a = audioCtx;
+    if (a.state === "suspended") void a.resume();
+    const t = a.currentTime;
+    const o = a.createOscillator(), v = a.createGain();
+    o.type = "square";
+    o.frequency.setValueAtTime(320, t);
+    o.frequency.exponentialRampToValueAtTime(880, t + 0.12);
+    v.gain.setValueAtTime(0.12, t);
+    v.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+    o.connect(v).connect(a.destination);
+    o.start(t); o.stop(t + 0.2);
+  } catch { /* audio not available */ }
+}
+
 function Play() {
   const { room } = Route.useParams();
   const { role } = Route.useSearch();
@@ -93,7 +112,7 @@ function Play() {
       .on("broadcast", { event: "button" }, () => { s.button = true; })
       .on("broadcast", { event: "key" }, ({ payload }) => { s.keyBy = payload.by; })
       .on("broadcast", { event: "level" }, ({ payload }) => { flash(`🎉 Level ${payload.done} selesai!`); resetLevel(payload.next); })
-      .on("broadcast", { event: "chat" }, ({ payload }) => { s.bubbles[other] = { t: payload.t, n: 200 }; })
+      .on("broadcast", { event: "chat" }, ({ payload }) => { if (typeof payload?.t === "string") s.bubbles[other] = { t: payload.t.slice(0, 40), n: 200 }; })
       .subscribe((st) => { if (st === "SUBSCRIBED") ch.track({ name: me.username, skin: s.skins[role] }); });
     chan.current = ch;
     return () => { supabase.removeChannel(ch); chan.current = null; };
@@ -156,7 +175,9 @@ function Play() {
       // ride on partner's head: move along with them
       const mm = s.mine;
       if (mm.onGround && Math.abs(mm.y + PH - th.y) < 3 && mm.x + PW > th.x && mm.x < th.x + PW) mm.x += th.vx;
+      const wasGround = s.mine.onGround;
       s.mine = step(s.mine, input.current, [...world, ...boxRects, partnerRect], L.width);
+      if (wasGround && input.current.up && s.mine.vy < 0) playJump();
       const send = (event: string, payload: object) => chan.current?.send({ type: "broadcast", event, payload });
       let m = s.mine;
       const box = { x: m.x + 4, y: m.y + 4, w: PW - 8, h: PH - 4 };
@@ -252,11 +273,15 @@ function Play() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const say = (t: string) => {
-    if (!t.trim()) return;
+  const releaseKeys = () => { const i = input.current; i.left = i.right = i.up = i.down = false; };
+  const say = (raw: string) => {
+    const t = raw.trim().slice(0, 40);
+    if (!t) return;
     g.current.bubbles[role] = { t, n: 200 };
-    chan.current?.send({ type: "broadcast", event: "chat", payload: { t } });
+    void chan.current?.send({ type: "broadcast", event: "chat", payload: { t } });
     setText("");
+    releaseKeys();
+    setChatOpen(false);
   };
 
   const fullscreen = async () => {
@@ -294,7 +319,9 @@ function Play() {
             {QUICK.map((q) => <button key={q} onClick={() => say(q)} className="hud-chip">{q}</button>)}
           </div>
           <form className="mt-2 flex gap-1" onSubmit={(e) => { e.preventDefault(); say(text); (document.activeElement as HTMLElement)?.blur(); }}>
-            <input value={text} onChange={(e) => setText(e.target.value)} maxLength={40} placeholder="Ketik..." className="pixel-input !py-1" />
+            <input value={text} onChange={(e) => setText(e.target.value)} maxLength={40}
+              onFocus={releaseKeys} onKeyDown={(e) => e.stopPropagation()} onKeyUp={(e) => e.stopPropagation()}
+              enterKeyHint="send" autoComplete="off" placeholder="Ketik..." className="pixel-input !py-1" />
             <button className="pixel-btn !py-1">Kirim</button>
           </form>
         </div>
