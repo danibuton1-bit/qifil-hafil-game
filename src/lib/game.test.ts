@@ -92,3 +92,11 @@ describe("game music", () => {
     expect(clampVolume(0.6 - 0.1)).toBe(0.5);
   });
 });
+
+import { needsSeek } from "./music";
+describe("music sync", () => {
+  it("follows the host only when more than 1 second apart", () => {
+    expect(needsSeek(10, 10.8)).toBe(false);
+    expect(needsSeek(10, 11.5)).toBe(true);
+  });
+});
