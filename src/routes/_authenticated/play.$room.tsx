@@ -246,8 +246,9 @@ function Play() {
       ctx.fillStyle = "gold"; ctx.fillRect(kx, ky, 20, 8); ctx.beginPath(); ctx.arc(kx + 22, ky + 4, 7, 0, Math.PI * 2); ctx.fill();
 
       const blink = t % 5000 < 160;
-      const drawP = (who: Role, x: number, y: number, moving: boolean, air: boolean, phase: number) => {
+      const drawP = (who: Role, x: number, y: number, moving: boolean, air: boolean, phase: number, guard = false) => {
         const c = SKINS[s.skins[who]];
+        if (guard) ctx.globalAlpha = Math.floor(t / 120) % 2 ? 0.45 : 1;
         ctx.fillStyle = c.body; ctx.fillRect(x, y, PW, PH - 8);
         ctx.fillStyle = c.hat; ctx.fillRect(x - 3, y - 10, PW + 6, 12); ctx.beginPath(); ctx.arc(x + PW / 2, y - 12, 5, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = "#000";
@@ -255,6 +256,11 @@ function Play() {
         else { ctx.fillRect(x + 10, y + 12, 5, 7); ctx.fillRect(x + 25, y + 12, 5, 7); }
         const sw = air ? 3 : moving ? Math.sin(phase * 0.35) * 5 : 0;
         ctx.fillRect(x + 6 + sw, y + PH - 8, 9, 8); ctx.fillRect(x + 25 - sw, y + PH - 8, 9, 8);
+        if (guard) {
+          ctx.globalAlpha = 1;
+          ctx.strokeStyle = "#38BDF8"; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.arc(x + PW / 2, y + PH / 2 - 6, 34, 0, Math.PI * 2); ctx.stroke();
+        }
         ctx.font = "bold 13px monospace"; ctx.textAlign = "center";
         ctx.fillStyle = c.hat; ctx.fillText(s.names[who], x + PW / 2, y - 22);
         const b = s.bubbles[who];
@@ -268,8 +274,8 @@ function Play() {
         }
         ctx.textAlign = "left";
       };
-      drawP(other, th.x, th.y, Math.abs(th.vx) > 0.5, false, t / 16);
-      drawP(role, m.x, m.y, Math.abs(m.vx) > 0.5, !m.onGround, s.walk);
+      drawP(other, th.x, th.y, Math.abs(th.vx) > 0.5, false, t / 16, t < s.shieldOther);
+      drawP(role, m.x, m.y, Math.abs(m.vx) > 0.5, !m.onGround, s.walk, t < s.shield);
       ctx.restore();
       // progress bar
       ctx.fillStyle = "#eee"; ctx.fillRect(440, 690, 400, 10);
@@ -315,6 +321,7 @@ function Play() {
         <button onClick={() => navigate({ to: "/lobby" })} className="hud-btn">✕</button>
         <span className="hud-chip">Level {level}/{MAX_LEVEL}</span>
         <span className="hud-chip">{partnerHere ? `🟢 ${g.current.names[other]}` : "⏳ Menunggu teman..."}</span>
+        {shieldOn && <span className="hud-chip">🛡️ Lindung</span>}
         <button onClick={fullscreen} className="hud-btn">⛶</button>
         <button onClick={() => setChatOpen((v) => !v)} className="hud-btn">💬</button>
       </div>
