@@ -12,6 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as BluetoothRouteImport } from './routes/bluetooth'
+import { Route as HotspotRouteImport } from './routes/hotspot'
+import { Route as SoloRouteImport } from './routes/solo'
 import { Route as AuthenticatedLobbyRouteImport } from './routes/_authenticated/lobby'
 import { Route as AuthenticatedPlayRoomRouteImport } from './routes/_authenticated/play.$room'
 import { Route as AuthenticatedRoomRoomRouteImport } from './routes/_authenticated/room.$room'
@@ -28,6 +31,21 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BluetoothRoute = BluetoothRouteImport.update({
+  id: '/bluetooth',
+  path: '/bluetooth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HotspotRoute = HotspotRouteImport.update({
+  id: '/hotspot',
+  path: '/hotspot',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SoloRoute = SoloRouteImport.update({
+  id: '/solo',
+  path: '/solo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedLobbyRoute = AuthenticatedLobbyRouteImport.update({
@@ -49,6 +67,9 @@ const AuthenticatedRoomRoomRoute = AuthenticatedRoomRoomRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/bluetooth': typeof BluetoothRoute
+  '/hotspot': typeof HotspotRoute
+  '/solo': typeof SoloRoute
   '/lobby': typeof AuthenticatedLobbyRoute
   '/play/$room': typeof AuthenticatedPlayRoomRoute
   '/room/$room': typeof AuthenticatedRoomRoomRoute
@@ -56,6 +77,9 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/bluetooth': typeof BluetoothRoute
+  '/hotspot': typeof HotspotRoute
+  '/solo': typeof SoloRoute
   '/lobby': typeof AuthenticatedLobbyRoute
   '/play/$room': typeof AuthenticatedPlayRoomRoute
   '/room/$room': typeof AuthenticatedRoomRoomRoute
@@ -65,20 +89,42 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/bluetooth': typeof BluetoothRoute
+  '/hotspot': typeof HotspotRoute
+  '/solo': typeof SoloRoute
   '/_authenticated/lobby': typeof AuthenticatedLobbyRoute
   '/_authenticated/play/$room': typeof AuthenticatedPlayRoomRoute
   '/_authenticated/room/$room': typeof AuthenticatedRoomRoomRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/lobby' | '/play/$room' | '/room/$room'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/bluetooth'
+    | '/hotspot'
+    | '/solo'
+    | '/lobby'
+    | '/play/$room'
+    | '/room/$room'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/lobby' | '/play/$room' | '/room/$room'
+  to:
+    | '/'
+    | '/auth'
+    | '/bluetooth'
+    | '/hotspot'
+    | '/solo'
+    | '/lobby'
+    | '/play/$room'
+    | '/room/$room'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/bluetooth'
+    | '/hotspot'
+    | '/solo'
     | '/_authenticated/lobby'
     | '/_authenticated/play/$room'
     | '/_authenticated/room/$room'
@@ -88,6 +134,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  BluetoothRoute: typeof BluetoothRoute
+  HotspotRoute: typeof HotspotRoute
+  SoloRoute: typeof SoloRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -111,6 +160,27 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bluetooth': {
+      id: '/bluetooth'
+      path: '/bluetooth'
+      fullPath: '/bluetooth'
+      preLoaderRoute: typeof BluetoothRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hotspot': {
+      id: '/hotspot'
+      path: '/hotspot'
+      fullPath: '/hotspot'
+      preLoaderRoute: typeof HotspotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/solo': {
+      id: '/solo'
+      path: '/solo'
+      fullPath: '/solo'
+      preLoaderRoute: typeof SoloRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/lobby': {
@@ -156,6 +226,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  BluetoothRoute: BluetoothRoute,
+  HotspotRoute: HotspotRoute,
+  SoloRoute: SoloRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
