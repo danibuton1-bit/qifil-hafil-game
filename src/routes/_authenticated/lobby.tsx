@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile, type Profile } from "@/lib/use-profile";
+import { MusicPanel } from "@/components/MusicPanel";
 import logo from "@/assets/qifil-hafil-logo.jpg";
 
 export const Route = createFileRoute("/_authenticated/lobby")({
@@ -118,6 +119,8 @@ function Lobby() {
           </div>
         ))}
       </section>
+
+      <MusicPanel userId={me?.id} />
 
       {(invite || waiting) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 p-4">

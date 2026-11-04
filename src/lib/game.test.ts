@@ -78,3 +78,17 @@ describe("respawn protection", () => {
     expect(SHIELD_MS).toBe(2500);
   });
 });
+
+import { nextIndex, clampVolume } from "./music";
+describe("game music", () => {
+  it("moves to the next song and wraps after the last", () => {
+    expect(nextIndex(0, 3)).toBe(1);
+    expect(nextIndex(2, 3)).toBe(0);
+    expect(nextIndex(0, 0)).toBe(-1);
+  });
+  it("keeps volume between 0 and 100%", () => {
+    expect(clampVolume(1.3)).toBe(1);
+    expect(clampVolume(-0.1)).toBe(0);
+    expect(clampVolume(0.6 - 0.1)).toBe(0.5);
+  });
+});
