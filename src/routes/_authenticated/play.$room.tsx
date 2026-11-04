@@ -61,6 +61,17 @@ function Play() {
   const [toast, setToast] = useState("");
   const [shieldOn, setShieldOn] = useState(false);
   const music = useGameMusic();
+  const musicRef = useRef(music);
+  musicRef.current = music;
+  // QIFIL leads the music; HAFIL's phone follows the same song and position.
+  useEffect(() => {
+    if (role !== "qifil") return;
+    const id = setInterval(() => {
+      const snap = musicRef.current.snapshot();
+      if (snap) void chan.current?.send({ type: "broadcast", event: "music", payload: snap });
+    }, 2000);
+    return () => clearInterval(id);
+  }, [role]);
   const g = useRef({
     level: 1,
     mine: { x: 0, y: 0, vx: 0, vy: 0, onGround: false } as Body,
@@ -118,6 +129,7 @@ function Play() {
       .on("broadcast", { event: "button" }, () => { s.button = true; })
       .on("broadcast", { event: "key" }, ({ payload }) => { s.keyBy = payload.by; })
       .on("broadcast", { event: "level" }, ({ payload }) => { flash(`🎉 Level ${payload.done} selesai!`); resetLevel(payload.next); })
+      .on("broadcast", { event: "music" }, ({ payload }) => { if (role !== "qifil" && typeof payload?.id === "string") musicRef.current.follow({ id: payload.id, t: Number(payload.t) + 0.15, paused: !!payload.paused }); })
       .on("broadcast", { event: "chat" }, ({ payload }) => { if (typeof payload?.t === "string") s.bubbles[other] = { t: payload.t.slice(0, 40), n: 200 }; })
       .subscribe((st) => { if (st === "SUBSCRIBED") ch.track({ name: me.username, skin: s.skins[role] }); });
     chan.current = ch;
@@ -329,7 +341,7 @@ function Play() {
             <button onClick={() => music.setVolume(music.volume - 0.1)} className="hud-btn" aria-label="Kecilkan musik">🔉</button>
             <span className="hud-chip" title={music.title}>🎵 {Math.round(music.volume * 100)}%</span>
             <button onClick={() => music.setVolume(music.volume + 0.1)} className="hud-btn" aria-label="Besarkan musik">🔊</button>
-            <button onClick={music.skip} className="hud-btn" aria-label="Lagu berikutnya">⏭</button>
+            {role === "qifil" && <button onClick={music.skip} className="hud-btn" aria-label="Lagu berikutnya">⏭</button>}
           </>
         )}
         <button onClick={fullscreen} className="hud-btn">⛶</button>

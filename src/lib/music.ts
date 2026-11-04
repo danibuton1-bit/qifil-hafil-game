@@ -10,6 +10,13 @@ export function nextIndex(i: number, count: number): number {
   return count === 0 ? -1 : (i + 1) % count;
 }
 
+export type MusicSync = { id: string; t: number; paused: boolean };
+
+/** Jump to the host's position only when we drift more than 1 second. */
+export function needsSeek(mine: number, host: number): boolean {
+  return Math.abs(mine - host) > 1;
+}
+
 export function clampVolume(v: number): number {
   return Math.min(1, Math.max(0, Math.round(v * 10) / 10));
 }
@@ -85,7 +92,28 @@ export function useGameMusic() {
     return () => window.removeEventListener("pointerdown", go);
   }, [blocked]);
 
+  const seekTo = useRef<number | null>(null);
+  useEffect(() => {
+    const a = audio.current;
+    if (!a) return;
+    a.onloadedmetadata = () => { if (seekTo.current !== null) { a.currentTime = seekTo.current; seekTo.current = null; } };
+  }, []);
+
   return {
+    /** What is playing now, for the host to share. */
+    snapshot: (): MusicSync | null => {
+      const t = tracks[idx]; const a = audio.current;
+      return t && a ? { id: t.id, t: a.currentTime, paused: a.paused } : null;
+    },
+    /** Follow the host: same song, same position. */
+    follow: (m: MusicSync) => {
+      const a = audio.current; if (!a) return;
+      const i = tracks.findIndex((t) => t.id === m.id);
+      if (i < 0) { listTracks().then(setTracks); return; }
+      if (i !== idx) { seekTo.current = m.t; setIdx(i); return; }
+      if (needsSeek(a.currentTime, m.t)) a.currentTime = m.t;
+      if (a.paused && !m.paused) a.play().catch(() => setBlocked(true));
+    },
     title: tracks[idx]?.title ?? "",
     hasMusic: tracks.length > 0,
     volume,
