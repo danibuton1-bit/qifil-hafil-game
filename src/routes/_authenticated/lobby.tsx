@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile, type Profile } from "@/lib/use-profile";
-import logo from "@/assets/qifil-hafil-logo.jpg.asset.json";
+import logo from "@/assets/qifil-hafil-logo.jpg";
 
 export const Route = createFileRoute("/_authenticated/lobby")({
   head: () => ({
@@ -77,7 +77,7 @@ function Lobby() {
   return (
     <main className="pixel-page">
       <header className="mx-auto flex max-w-md items-center justify-between">
-        <img src={logo.url} alt="QIFIL DAN HAFIL" className="h-14 rounded-md" />
+        <img src={logo} alt="QIFIL DAN HAFIL" className="h-14 rounded-md" />
         <button onClick={logout} className="tab-off !w-auto px-3">Keluar</button>
       </header>
 

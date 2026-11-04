@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { isValidUsername, usernameToEmail } from "@/lib/game";
-import logo from "@/assets/qifil-hafil-logo.jpg.asset.json";
+import logo from "@/assets/qifil-hafil-logo.jpg";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -48,7 +48,7 @@ function AuthPage() {
 
   return (
     <main className="pixel-page">
-      <img src={logo.url} alt="QIFIL DAN HAFIL" className="mx-auto w-full max-w-sm rounded-xl" />
+      <img src={logo} alt="QIFIL DAN HAFIL" className="mx-auto w-full max-w-sm rounded-xl" />
       <form onSubmit={submit} className="pixel-card mx-auto mt-6 w-full max-w-sm space-y-3">
         <div className="flex gap-2">
           {(["daftar", "masuk"] as const).map((m) => (

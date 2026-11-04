@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import logo from "@/assets/qifil-hafil-logo.jpg.asset.json";
+import logo from "@/assets/qifil-hafil-logo.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -18,7 +18,7 @@ export const Route = createFileRoute("/")({
 function Home() {
   return (
     <main className="pixel-page flex flex-col items-center justify-center">
-      <img src={logo.url} alt="QIFIL DAN HAFIL" className="w-full max-w-md rounded-xl" />
+      <img src={logo} alt="QIFIL DAN HAFIL" className="w-full max-w-md rounded-xl" />
       <Link to="/lobby" className="pixel-btn mt-8 px-10">MAIN ▶</Link>
     </main>
   );
