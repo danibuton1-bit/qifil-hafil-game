@@ -44,3 +44,15 @@ describe("levels", () => {
     }
   });
 });
+
+describe("boxes and bridges", () => {
+  it("levels have pink and blue boxes and bridge holes too wide to jump", () => {
+    const all = Array.from({ length: MAX_LEVEL }, (_, i) => levelAt(i + 1));
+    const boxes = all.flatMap((l) => l.boxes);
+    expect(boxes.some((b) => b.color === "pink")).toBe(true);
+    expect(boxes.some((b) => b.color === "biru")).toBe(true);
+    const br = all.flatMap((l) => l.bridges);
+    expect(br.length).toBeGreaterThan(0);
+    for (const b of br) expect(b.w).toBeGreaterThan(MAX_GAP);
+  });
+});
