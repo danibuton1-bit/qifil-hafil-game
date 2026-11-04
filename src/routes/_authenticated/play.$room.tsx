@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/lib/use-profile";
-import { BOX, GY, GRAVITY, H, MAX_LEVEL, PH, PW, SKINS, W, isSkin, levelAt, overlap, step, touches, type Body, type Input, type Skin } from "@/lib/game";
+import { BOX, GY, GRAVITY, H, MAX_LEVEL, PH, PW, SHIELD_MS, SKINS, W, hazardCheck, isSkin, levelAt, overlap, step, touches, type Body, type Input, type Skin } from "@/lib/game";
 import { savedSkin } from "@/components/Character";
 
 type Role = "qifil" | "hafil";
@@ -58,6 +58,7 @@ function Play() {
   const [chatOpen, setChatOpen] = useState(false);
   const [text, setText] = useState("");
   const [toast, setToast] = useState("");
+  const [shieldOn, setShieldOn] = useState(false);
   const g = useRef({
     level: 1,
     mine: { x: 0, y: 0, vx: 0, vy: 0, onGround: false } as Body,
@@ -70,6 +71,8 @@ function Play() {
     button: false,
     keyBy: "" as "" | Role,
     winning: false,
+    shield: 0,
+    shieldOther: 0,
     boxes: [] as { x: number; y: number; vy: number; color: "pink" | "biru"; lock: number; moved: boolean }[],
     ext: [] as number[],
   });
