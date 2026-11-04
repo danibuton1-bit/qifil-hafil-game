@@ -42,21 +42,34 @@ function RoomLobby() {
     const ch = supabase.channel(`room:${room}`, { config: { presence: { key: role }, broadcast: { self: false } } });
     ch.on("presence", { event: "sync" }, () => {
       const st = ch.presenceState<Seat>();
-      setMate(st[other]?.[0] ?? null);
+      const p = st[other]?.[st[other].length - 1];
+      if (!p) setMate(null);
+      else setMate((m) => m ?? p);
     })
+      .on("broadcast", { event: "seat" }, ({ payload }) => {
+        if (payload?.role === other) setMate(payload.seat as Seat);
+      })
       .on("broadcast", { event: "start" }, () => navigate({ to: "/play/$room", params: { room }, search: { role } }))
-      .subscribe((s) => { if (s === "SUBSCRIBED") chan.current = ch; });
+      .subscribe((s) => { if (s === "SUBSCRIBED") { chan.current = ch; sendSeat.current(); } });
     return () => { supabase.removeChannel(ch); chan.current = null; };
   }, [me, room, role, other, navigate]);
 
+  const sendSeat = useRef<() => void>(() => {});
   useEffect(() => {
     if (!me) return;
+    const seat: Seat = { name: me.username, pid: me.player_id, skin, ready };
+    sendSeat.current = () => {
+      const c = chan.current;
+      if (!c) return;
+      c.track(seat);
+      c.send({ type: "broadcast", event: "seat", payload: { role, seat } });
+    };
+    sendSeat.current();
     const t = setInterval(() => {
-      chan.current?.track({ name: me.username, pid: me.player_id, skin, ready });
-    }, 400);
-    chan.current?.track({ name: me.username, pid: me.player_id, skin, ready });
+      chan.current?.send({ type: "broadcast", event: "seat", payload: { role, seat } });
+    }, 1500);
     return () => clearInterval(t);
-  }, [me, skin, ready]);
+  }, [me, skin, ready, role]);
 
   const pick = (s: Skin) => { setSkin(s); localStorage.setItem("skin", s); };
   const canStart = role === "qifil" && ready && !!mate?.ready;
