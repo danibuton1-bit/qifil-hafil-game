@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { step, usernameToEmail, isValidUsername, PH } from "./game";
+import { step, usernameToEmail, isValidUsername, PH, H, hazardCheck, SHIELD_MS } from "./game";
 
 const idle = { left: false, right: false, up: false, down: false };
 
@@ -45,7 +45,8 @@ describe("levels", () => {
   });
 });
 
-describe("boxes and bridges", () => {  it("levels have pink and blue boxes and bridge holes too wide to jump", () => {
+describe("boxes and bridges", () => {
+  it("levels have pink and blue boxes and bridge holes too wide to jump", () => {
     const all = Array.from({ length: MAX_LEVEL }, (_, i) => levelAt(i + 1));
     const boxes = all.flatMap((l) => l.boxes);
     expect(boxes.some((b) => b.color === "pink")).toBe(true);
@@ -53,5 +54,27 @@ describe("boxes and bridges", () => {  it("levels have pink and blue boxes and b
     const br = all.flatMap((l) => l.bridges);
     expect(br.length).toBeGreaterThan(0);
     for (const b of br) expect(b.w).toBeGreaterThan(MAX_GAP);
+  });
+});
+
+describe("respawn protection", () => {
+  const spike = [{ x: 200, y: GY - 16, w: 40, h: 16 }];
+  const onSpike = { x: 200, y: GY - PH, vx: 0, vy: 0, onGround: true };
+
+  it("spikes kill a normal player", () => {
+    expect(hazardCheck(onSpike, spike, false)).toEqual({ dead: true, cause: "spike" });
+  });
+  it("spikes cannot kill a player who is still protected", () => {
+    expect(hazardCheck(onSpike, spike, true)).toEqual({ dead: false });
+  });
+  it("falling out of the world still puts a protected player back", () => {
+    expect(hazardCheck({ x: 200, y: H + 10, vx: 0, vy: 0, onGround: false }, spike, true))
+      .toEqual({ dead: true, cause: "fall" });
+  });
+  it("safe ground is not a hazard", () => {
+    expect(hazardCheck({ x: 80, y: 560, vx: 0, vy: 0, onGround: true }, spike, false)).toEqual({ dead: false });
+  });
+  it("protection lasts about 2.5 seconds", () => {
+    expect(SHIELD_MS).toBe(2500);
   });
 });
