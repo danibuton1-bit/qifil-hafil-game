@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/lib/use-profile";
 import { BOX, GY, GRAVITY, H, MAX_LEVEL, PH, PW, SHIELD_MS, SKINS, W, hazardCheck, isSkin, levelAt, overlap, step, touches, type Body, type Input, type Skin } from "@/lib/game";
 import { savedSkin } from "@/components/Character";
+import { useGameMusic } from "@/lib/music";
 
 type Role = "qifil" | "hafil";
 
@@ -59,6 +60,7 @@ function Play() {
   const [text, setText] = useState("");
   const [toast, setToast] = useState("");
   const [shieldOn, setShieldOn] = useState(false);
+  const music = useGameMusic();
   const g = useRef({
     level: 1,
     mine: { x: 0, y: 0, vx: 0, vy: 0, onGround: false } as Body,
@@ -322,6 +324,14 @@ function Play() {
         <span className="hud-chip">Level {level}/{MAX_LEVEL}</span>
         <span className="hud-chip">{partnerHere ? `🟢 ${g.current.names[other]}` : "⏳ Menunggu teman..."}</span>
         {shieldOn && <span className="hud-chip">🛡️ Lindung</span>}
+        {music.hasMusic && (
+          <>
+            <button onClick={() => music.setVolume(music.volume - 0.1)} className="hud-btn" aria-label="Kecilkan musik">🔉</button>
+            <span className="hud-chip" title={music.title}>🎵 {Math.round(music.volume * 100)}%</span>
+            <button onClick={() => music.setVolume(music.volume + 0.1)} className="hud-btn" aria-label="Besarkan musik">🔊</button>
+            <button onClick={music.skip} className="hud-btn" aria-label="Lagu berikutnya">⏭</button>
+          </>
+        )}
         <button onClick={fullscreen} className="hud-btn">⛶</button>
         <button onClick={() => setChatOpen((v) => !v)} className="hud-btn">💬</button>
       </div>
