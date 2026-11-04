@@ -89,6 +89,7 @@ function Play() {
     })
       .on("broadcast", { event: "pos" }, ({ payload }) => { s.theirs.tx = payload.x; s.theirs.ty = payload.y; if (s.theirs.x < -50) { s.theirs.x = payload.x; s.theirs.y = payload.y; } })
       .on("broadcast", { event: "box" }, ({ payload }) => { const b = s.boxes[payload.i]; if (b && payload.l === s.level) { b.x = payload.x; b.y = payload.y; b.vy = 0; b.lock = 8; } })
+      .on("broadcast", { event: "dead" }, () => { flash(`💥 ${s.names[other]} respawn!`); })
       .on("broadcast", { event: "button" }, () => { s.button = true; })
       .on("broadcast", { event: "key" }, ({ payload }) => { s.keyBy = payload.by; })
       .on("broadcast", { event: "level" }, ({ payload }) => { flash(`🎉 Level ${payload.done} selesai!`); resetLevel(payload.next); })
@@ -156,15 +157,16 @@ function Play() {
       const mm = s.mine;
       if (mm.onGround && Math.abs(mm.y + PH - th.y) < 3 && mm.x + PW > th.x && mm.x < th.x + PW) mm.x += th.vx;
       s.mine = step(s.mine, input.current, [...world, ...boxRects, partnerRect], L.width);
+      const send = (event: string, payload: object) => chan.current?.send({ type: "broadcast", event, payload });
       let m = s.mine;
       const box = { x: m.x + 4, y: m.y + 4, w: PW - 8, h: PH - 4 };
       if (m.y > H || L.spikes.some((k) => overlap(box, k))) {
         s.mine = m = { x: s.safe.x, y: s.safe.y - 80, vx: 0, vy: 0, onGround: false };
-      } else if (m.onGround && !L.spikes.some((k) => Math.abs(k.x + k.w / 2 - (m.x + PW / 2)) < k.w / 2 + 70)) {
+        send("dead", {}); flash("💥 Respawn!");
+      } else if (m.onGround && m.y + PH >= GY - 200 && !L.pits.some((p) => m.x + PW > p.x - 30 && m.x < p.x + p.w + 30) && !L.spikes.some((k) => Math.abs(k.x + k.w / 2 - (m.x + PW / 2)) < k.w / 2 + 70)) {
         s.safe = { x: m.x, y: m.y };
       }
       s.walk += Math.abs(m.vx) > 0.5 ? 1 : 0;
-      const send = (event: string, payload: object) => chan.current?.send({ type: "broadcast", event, payload });
       if (t - lastSend > 50) { lastSend = t; send("pos", { x: Math.round(m.x), y: Math.round(m.y) });
         s.boxes.forEach((b, i) => { if (b.moved) { b.moved = false; send("box", { i, x: b.x, y: b.y, l: s.level }); } }); }
 
