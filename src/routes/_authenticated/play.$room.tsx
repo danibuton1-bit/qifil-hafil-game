@@ -139,7 +139,7 @@ function Play() {
   // loop
   useEffect(() => {
     const ctx = canvasRef.current!.getContext("2d")!;
-    let raf = 0, lastSend = 0;
+    let raf = 0, lastSend = 0, hudShield = false;
     const loop = (t: number) => {
       const s = g.current;
       const L = levelAt(s.level);
@@ -180,17 +180,21 @@ function Play() {
       const mm = s.mine;
       if (mm.onGround && Math.abs(mm.y + PH - th.y) < 3 && mm.x + PW > th.x && mm.x < th.x + PW) mm.x += th.vx;
       const wasGround = s.mine.onGround;
+      const shielded = t < s.shield;
       s.mine = step(s.mine, input.current, [...world, ...boxRects, partnerRect], L.width);
       if (wasGround && input.current.up && s.mine.vy < 0) playJump();
       const send = (event: string, payload: object) => chan.current?.send({ type: "broadcast", event, payload });
       let m = s.mine;
-      const box = { x: m.x + 4, y: m.y + 4, w: PW - 8, h: PH - 4 };
-      if (m.y > H || L.spikes.some((k) => overlap(box, k))) {
+      const death = hazardCheck(m, L.spikes, shielded);
+      if (death.dead) {
         s.mine = m = { x: s.safe.x, y: s.safe.y - 80, vx: 0, vy: 0, onGround: false };
+        s.shield = t + SHIELD_MS;
         send("dead", {}); flash("💥 Respawn!");
       } else if (m.onGround && m.y + PH >= GY - 200 && !L.pits.some((p) => m.x + PW > p.x - 30 && m.x < p.x + p.w + 30) && !L.spikes.some((k) => Math.abs(k.x + k.w / 2 - (m.x + PW / 2)) < k.w / 2 + 70)) {
         s.safe = { x: m.x, y: m.y };
       }
+      const nowShielded = t < s.shield;
+      if (nowShielded !== hudShield) { hudShield = nowShielded; setShieldOn(nowShielded); }
       s.walk += Math.abs(m.vx) > 0.5 ? 1 : 0;
       if (t - lastSend > 50) { lastSend = t; send("pos", { x: Math.round(m.x), y: Math.round(m.y) });
         s.boxes.forEach((b, i) => { if (b.moved) { b.moved = false; send("box", { i, x: b.x, y: b.y, l: s.level }); } }); }
