@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/lib/use-profile";
-import { GY, H, MAX_LEVEL, PH, PW, SKINS, W, isSkin, levelAt, overlap, step, touches, type Body, type Input, type Skin } from "@/lib/game";
+import { BOX, GY, GRAVITY, H, MAX_LEVEL, PH, PW, SKINS, W, isSkin, levelAt, overlap, step, touches, type Body, type Input, type Skin } from "@/lib/game";
 import { savedSkin } from "@/components/Character";
 
 type Role = "qifil" | "hafil";
@@ -51,6 +51,8 @@ function Play() {
     button: false,
     keyBy: "" as "" | Role,
     winning: false,
+    boxes: [] as { x: number; y: number; vy: number; color: "pink" | "biru"; lock: number; moved: boolean }[],
+    ext: [] as number[],
   });
 
   const flash = (m: string) => { setToast(m); setTimeout(() => setToast(""), 2000); };
@@ -58,6 +60,8 @@ function Play() {
   const resetLevel = (n: number) => {
     const s = g.current;
     const L = levelAt(n);
+    s.boxes = L.boxes.map((b) => ({ ...b, vy: 0, lock: 0, moved: false }));
+    s.ext = L.bridges.map(() => 0);
     s.level = n; s.button = false; s.keyBy = ""; s.winning = false;
     s.mine = { x: L.spawn[role === "qifil" ? 0 : 1], y: 560, vx: 0, vy: 0, onGround: false };
     s.safe = { x: s.mine.x, y: 560 };
@@ -84,6 +88,7 @@ function Play() {
       setPartnerHere(here);
     })
       .on("broadcast", { event: "pos" }, ({ payload }) => { s.theirs.tx = payload.x; s.theirs.ty = payload.y; if (s.theirs.x < -50) { s.theirs.x = payload.x; s.theirs.y = payload.y; } })
+      .on("broadcast", { event: "box" }, ({ payload }) => { const b = s.boxes[payload.i]; if (b && payload.l === s.level) { b.x = payload.x; b.y = payload.y; b.vy = 0; b.lock = 8; } })
       .on("broadcast", { event: "button" }, () => { s.button = true; })
       .on("broadcast", { event: "key" }, ({ payload }) => { s.keyBy = payload.by; })
       .on("broadcast", { event: "level" }, ({ payload }) => { flash(`🎉 Level ${payload.done} selesai!`); resetLevel(payload.next); })
@@ -118,7 +123,39 @@ function Play() {
       const ox = th.x;
       th.x += (th.tx - th.x) * 0.35; th.y += (th.ty - th.y) * 0.35; th.vx = th.x - ox;
       const partnerRect = { x: th.x, y: th.y, w: PW, h: PH };
-      s.mine = step(s.mine, input.current, [...L.platforms, partnerRect], L.width);
+      // bridges: extend while anyone (or a box) stands on either button
+      const bridgeRects = L.bridges.map((br, i) => {
+        const btns = [br.x - 50, br.x + br.w + 50];
+        const on = (o: { x: number; y: number }, w = PW) => btns.some((bx) => o.x + w > bx - 25 && o.x < bx + 25 && Math.abs(o.y + (w === PW ? PH : BOX) - GY) < 14);
+        const pressed = on(s.mine) || on(th) || s.boxes.some((b) => on(b, BOX));
+        s.ext[i] = Math.max(0, Math.min(1, (s.ext[i] ?? 0) + (pressed ? 0.05 : -0.05)));
+        const w = br.w * s.ext[i]!;
+        return { x: br.x + br.w - w, y: GY, w, h: 18 };
+      }).filter((r) => r.w > 2);
+      const world = [...L.platforms, ...bridgeRects];
+      // boxes: pushable by me, fall with gravity
+      for (const [i, b] of s.boxes.entries()) {
+        const sameRow = s.mine.y + PH > b.y + 6 && s.mine.y < b.y + BOX - 6;
+        let dx = 0;
+        if (sameRow && input.current.right && Math.abs(s.mine.x + PW - b.x) < 8) dx = 3;
+        if (sameRow && input.current.left && Math.abs(b.x + BOX - s.mine.x) < 8) dx = -3;
+        if (dx) {
+          const nb = { x: b.x + dx, y: b.y, w: BOX, h: BOX };
+          const others = s.boxes.filter((o) => o !== b).map((o) => ({ x: o.x, y: o.y, w: BOX, h: BOX }));
+          if (![...world, ...others, partnerRect].some((r) => overlap(nb, r))) { b.x += dx; b.moved = true; }
+        }
+        if (b.lock > 0) { b.lock--; continue; }
+        b.vy = Math.min(18, b.vy + GRAVITY); b.y += b.vy;
+        const r = { x: b.x, y: b.y, w: BOX, h: BOX };
+        for (const p of [...world, ...s.boxes.filter((o) => o !== b && o.y > b.y).map((o) => ({ x: o.x, y: o.y, w: BOX, h: BOX }))])
+          if (overlap(r, p) && b.vy > 0) { b.y = p.y - BOX; b.vy = 0; r.y = b.y; }
+        if (b.y > H) { const o = L.boxes[i]!; b.x = o.x; b.y = o.y - 200; b.vy = 0; b.moved = true; }
+      }
+      const boxRects = s.boxes.map((b) => ({ x: b.x, y: b.y, w: BOX, h: BOX }));
+      // ride on partner's head: move along with them
+      const mm = s.mine;
+      if (mm.onGround && Math.abs(mm.y + PH - th.y) < 3 && mm.x + PW > th.x && mm.x < th.x + PW) mm.x += th.vx;
+      s.mine = step(s.mine, input.current, [...world, ...boxRects, partnerRect], L.width);
       let m = s.mine;
       const box = { x: m.x + 4, y: m.y + 4, w: PW - 8, h: PH - 4 };
       if (m.y > H || L.spikes.some((k) => overlap(box, k))) {
@@ -128,7 +165,8 @@ function Play() {
       }
       s.walk += Math.abs(m.vx) > 0.5 ? 1 : 0;
       const send = (event: string, payload: object) => chan.current?.send({ type: "broadcast", event, payload });
-      if (t - lastSend > 50) { lastSend = t; send("pos", { x: Math.round(m.x), y: Math.round(m.y) }); }
+      if (t - lastSend > 50) { lastSend = t; send("pos", { x: Math.round(m.x), y: Math.round(m.y) });
+        s.boxes.forEach((b, i) => { if (b.moved) { b.moved = false; send("box", { i, x: b.x, y: b.y, l: s.level }); } }); }
 
       if (!s.button && (touches(m, L.button.x, L.button.y - 10) || touches(th, L.button.x, L.button.y - 10))) {
         if (touches(m, L.button.x, L.button.y - 10)) send("button", {});
@@ -153,6 +191,18 @@ function Play() {
       ctx.fillStyle = "#555";
       for (const k of L.spikes) for (let sx = k.x; sx < k.x + k.w; sx += 16) {
         ctx.beginPath(); ctx.moveTo(sx, GY); ctx.lineTo(sx + 8, GY - k.h); ctx.lineTo(sx + 16, GY); ctx.fill();
+      }
+      // bridges + their buttons
+      L.bridges.forEach((br, i) => {
+        const e = s.ext[i] ?? 0;
+        ctx.fillStyle = "#8D6E63"; ctx.fillRect(br.x + br.w - br.w * e, GY, br.w * e, 18);
+        for (const bx of [br.x - 50, br.x + br.w + 50]) {
+          ctx.fillStyle = e > 0 ? "#b45309" : "#f59e0b"; ctx.fillRect(bx - 25, GY - (e > 0 ? 4 : 10), 50, e > 0 ? 4 : 10);
+        }
+      });
+      for (const b of s.boxes) {
+        ctx.fillStyle = SKINS[b.color].body; ctx.fillRect(b.x, b.y, BOX, BOX);
+        ctx.strokeStyle = SKINS[b.color].hat; ctx.lineWidth = 4; ctx.strokeRect(b.x + 2, b.y + 2, BOX - 4, BOX - 4);
       }
       // door
       ctx.fillStyle = s.button ? "#4ADE80" : "#5D4037"; ctx.fillRect(L.door.x, L.door.y, 60, 80);

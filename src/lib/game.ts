@@ -21,7 +21,10 @@ export type Level = {
   key: { x: number; y: number };
   door: { x: number; y: number };
   spawn: [number, number];
+  boxes: { x: number; y: number; color: "pink" | "biru" }[];
+  bridges: { x: number; w: number }[]; // hole with a pressure button on each side
 };
+export const BOX = 44;
 
 export const MAX_LEVEL = 100;
 export const GY = 640; // ground top
@@ -42,6 +45,9 @@ export function makeLevel(n: number): Level {
   if (n >= 3) kinds.push("pit");
   if (n >= 6) kinds.push("spike");
   if (n >= 10) kinds.push("float");
+  if (n >= 2) kinds.push("box");
+  if (n >= 4) kinds.push("bridge");
+  const boxes: Level["boxes"] = [], bridges: Level["bridges"] = [];
   const platforms: Rect[] = [], spikes: Rect[] = [], pits: { x: number; w: number }[] = [];
   let x = 360, gStart = 0;
   let button = { x: 0, y: GY };
@@ -63,6 +69,13 @@ export function makeLevel(n: number): Level {
     } else if (k === "spike") {
       const w = 40 + Math.round(d * 40);
       spikes.push({ x, y: GY - 16, w, h: 16 }); x += w + 160;
+    } else if (k === "box") {
+      boxes.push({ x: x, y: GY - BOX, color: "pink" }, { x: x + 70, y: GY - BOX, color: "biru" });
+      platforms.push({ x: x + 260, y: GY - 100, w: 150, h: 100 });
+      x += 260 + 150 + 160;
+    } else if (k === "bridge") {
+      const w = 240 + Math.round(d * 60);
+      x += 100; bridges.push({ x, w }); hole(w); x += 120;
     } else {
       const g = Math.min(MAX_GAP, 100 + Math.round(d * 50 + r() * 10));
       hole(g * 2 + 70);
@@ -76,7 +89,7 @@ export function makeLevel(n: number): Level {
   const door = { x: x, y: GY - 80 };
   x += 240;
   endGround();
-  return { width: x, platforms, spikes, pits, button, key, door, spawn: [80, 160] };
+  return { width: x, platforms, spikes, pits, button, key, door, spawn: [80, 160], boxes, bridges };
 }
 
 const cache = new Map<number, Level>();
