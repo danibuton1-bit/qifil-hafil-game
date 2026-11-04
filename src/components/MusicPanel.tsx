@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { deleteTrack, listTracks, uploadTrack, type Track } from "@/lib/music";
 
-export function MusicPanel({ userId }: { userId?: string }) {
+export function MusicPanel({ userId }: { userId: string | undefined }) {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
