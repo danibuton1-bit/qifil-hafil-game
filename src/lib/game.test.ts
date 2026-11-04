@@ -45,8 +45,7 @@ describe("levels", () => {
   });
 });
 
-describe("boxes and bridges", () => {
-  it("levels have pink and blue boxes and bridge holes too wide to jump", () => {
+describe("boxes and bridges", () => {  it("levels have pink and blue boxes and bridge holes too wide to jump", () => {
     const all = Array.from({ length: MAX_LEVEL }, (_, i) => levelAt(i + 1));
     const boxes = all.flatMap((l) => l.boxes);
     expect(boxes.some((b) => b.color === "pink")).toBe(true);
