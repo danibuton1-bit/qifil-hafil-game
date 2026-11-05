@@ -53,6 +53,12 @@ function Home() {
         <Link to="/hotspot" className="pixel-btn">🟠 MABAR HOTSPOT (OFFLINE)</Link>
         <Link to="/bluetooth" className="pixel-btn">🔵 MABAR BLUETOOTH (OFFLINE)</Link>
         <Link to="/solo" className="pixel-btn">⚪ MAIN SENDIRI - Bareng BOT</Link>
+        {online ? (
+          <Link to="/mabar" className="pixel-btn">👥 MABAR 1-5 ORANG - BEDA HP</Link>
+        ) : (
+          <button disabled className="pixel-btn">🔒 MABAR 1-5 - Butuh Internet</button>
+        )}
+        <Link to="/bayone-solo" className="pixel-btn">⚔️ BAY ONE - LAWAN 4 BOT</Link>
       </div>
     </main>
   );

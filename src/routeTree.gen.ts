@@ -12,10 +12,13 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as BayoneSoloRouteImport } from './routes/bayone-solo'
 import { Route as BluetoothRouteImport } from './routes/bluetooth'
 import { Route as HotspotRouteImport } from './routes/hotspot'
 import { Route as SoloRouteImport } from './routes/solo'
 import { Route as AuthenticatedLobbyRouteImport } from './routes/_authenticated/lobby'
+import { Route as AuthenticatedMabarRouteImport } from './routes/_authenticated/mabar'
+import { Route as AuthenticatedBayoneRoomRouteImport } from './routes/_authenticated/bayone.$room'
 import { Route as AuthenticatedPlayRoomRouteImport } from './routes/_authenticated/play.$room'
 import { Route as AuthenticatedRoomRoomRouteImport } from './routes/_authenticated/room.$room'
 
@@ -31,6 +34,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BayoneSoloRoute = BayoneSoloRouteImport.update({
+  id: '/bayone-solo',
+  path: '/bayone-solo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BluetoothRoute = BluetoothRouteImport.update({
@@ -53,6 +61,16 @@ const AuthenticatedLobbyRoute = AuthenticatedLobbyRouteImport.update({
   path: '/lobby',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMabarRoute = AuthenticatedMabarRouteImport.update({
+  id: '/mabar',
+  path: '/mabar',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedBayoneRoomRoute = AuthenticatedBayoneRoomRouteImport.update({
+  id: '/bayone/$room',
+  path: '/bayone/$room',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedPlayRoomRoute = AuthenticatedPlayRoomRouteImport.update({
   id: '/play/$room',
   path: '/play/$room',
@@ -67,20 +85,26 @@ const AuthenticatedRoomRoomRoute = AuthenticatedRoomRoomRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/bayone-solo': typeof BayoneSoloRoute
   '/bluetooth': typeof BluetoothRoute
   '/hotspot': typeof HotspotRoute
   '/solo': typeof SoloRoute
   '/lobby': typeof AuthenticatedLobbyRoute
+  '/mabar': typeof AuthenticatedMabarRoute
+  '/bayone/$room': typeof AuthenticatedBayoneRoomRoute
   '/play/$room': typeof AuthenticatedPlayRoomRoute
   '/room/$room': typeof AuthenticatedRoomRoomRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/bayone-solo': typeof BayoneSoloRoute
   '/bluetooth': typeof BluetoothRoute
   '/hotspot': typeof HotspotRoute
   '/solo': typeof SoloRoute
   '/lobby': typeof AuthenticatedLobbyRoute
+  '/mabar': typeof AuthenticatedMabarRoute
+  '/bayone/$room': typeof AuthenticatedBayoneRoomRoute
   '/play/$room': typeof AuthenticatedPlayRoomRoute
   '/room/$room': typeof AuthenticatedRoomRoomRoute
 }
@@ -89,10 +113,13 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/bayone-solo': typeof BayoneSoloRoute
   '/bluetooth': typeof BluetoothRoute
   '/hotspot': typeof HotspotRoute
   '/solo': typeof SoloRoute
   '/_authenticated/lobby': typeof AuthenticatedLobbyRoute
+  '/_authenticated/mabar': typeof AuthenticatedMabarRoute
+  '/_authenticated/bayone/$room': typeof AuthenticatedBayoneRoomRoute
   '/_authenticated/play/$room': typeof AuthenticatedPlayRoomRoute
   '/_authenticated/room/$room': typeof AuthenticatedRoomRoomRoute
 }
@@ -101,20 +128,26 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/bayone-solo'
     | '/bluetooth'
     | '/hotspot'
     | '/solo'
     | '/lobby'
+    | '/mabar'
+    | '/bayone/$room'
     | '/play/$room'
     | '/room/$room'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
+    | '/bayone-solo'
     | '/bluetooth'
     | '/hotspot'
     | '/solo'
     | '/lobby'
+    | '/mabar'
+    | '/bayone/$room'
     | '/play/$room'
     | '/room/$room'
   id:
@@ -122,10 +155,13 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/bayone-solo'
     | '/bluetooth'
     | '/hotspot'
     | '/solo'
     | '/_authenticated/lobby'
+    | '/_authenticated/mabar'
+    | '/_authenticated/bayone/$room'
     | '/_authenticated/play/$room'
     | '/_authenticated/room/$room'
   fileRoutesById: FileRoutesById
@@ -134,6 +170,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  BayoneSoloRoute: typeof BayoneSoloRoute
   BluetoothRoute: typeof BluetoothRoute
   HotspotRoute: typeof HotspotRoute
   SoloRoute: typeof SoloRoute
@@ -160,6 +197,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bayone-solo': {
+      id: '/bayone-solo'
+      path: '/bayone-solo'
+      fullPath: '/bayone-solo'
+      preLoaderRoute: typeof BayoneSoloRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bluetooth': {
@@ -190,6 +234,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLobbyRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/mabar': {
+      id: '/_authenticated/mabar'
+      path: '/mabar'
+      fullPath: '/mabar'
+      preLoaderRoute: typeof AuthenticatedMabarRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/bayone/$room': {
+      id: '/_authenticated/bayone/$room'
+      path: '/bayone/$room'
+      fullPath: '/bayone/$room'
+      preLoaderRoute: typeof AuthenticatedBayoneRoomRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/play/$room': {
       id: '/_authenticated/play/$room'
       path: '/play/$room'
@@ -209,12 +267,16 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedLobbyRoute: typeof AuthenticatedLobbyRoute
+  AuthenticatedMabarRoute: typeof AuthenticatedMabarRoute
+  AuthenticatedBayoneRoomRoute: typeof AuthenticatedBayoneRoomRoute
   AuthenticatedPlayRoomRoute: typeof AuthenticatedPlayRoomRoute
   AuthenticatedRoomRoomRoute: typeof AuthenticatedRoomRoomRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLobbyRoute: AuthenticatedLobbyRoute,
+  AuthenticatedMabarRoute: AuthenticatedMabarRoute,
+  AuthenticatedBayoneRoomRoute: AuthenticatedBayoneRoomRoute,
   AuthenticatedPlayRoomRoute: AuthenticatedPlayRoomRoute,
   AuthenticatedRoomRoomRoute: AuthenticatedRoomRoomRoute,
 }
@@ -226,6 +288,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  BayoneSoloRoute: BayoneSoloRoute,
   BluetoothRoute: BluetoothRoute,
   HotspotRoute: HotspotRoute,
   SoloRoute: SoloRoute,
