@@ -7,6 +7,7 @@ import { BOX, GY, GRAVITY, H, MAX_LEVEL, PH, PW, SHIELD_MS, SKINS, W, hazardChec
 import { savedSkin } from "@/components/Character";
 import { useGameMusic } from "@/lib/music";
 import { botInput, loadProgress, saveProgress } from "@/lib/bot";
+import { loadCloud, saveCloud } from "@/lib/progress";
 
 type Role = "qifil" | "hafil";
 
@@ -91,12 +92,17 @@ export function Game({ room, role, solo = false }: { room: string; role: Role; s
     s.safe = { x: s.mine.x, y: 560 };
     s.bot = { x: L.spawn[1], y: 560, vx: 0, vy: 0, onGround: false }; s.botStuck = 0;
     if (solo) { s.theirs = { x: s.bot.x, y: s.bot.y, tx: s.bot.x, ty: s.bot.y, vx: 0 }; }
-    saveProgress(n);
+    if (solo) { saveProgress(n); if (n > 1) void saveCloud("solo_level", n); }
+    else if (role === "qifil") void saveCloud("online_level", n);
     setLevel(n);
   };
 
   useEffect(() => {
     resetLevel(solo ? loadProgress() : 1);
+    // continue the last saved game from the online save
+    void loadCloud(solo ? "solo_level" : "online_level").then((n) => {
+      if (solo ? n > loadProgress() : role === "qifil" && n > 1) { resetLevel(n); flash(`▶ Lanjut Level ${n}`); }
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -120,7 +126,10 @@ export function Game({ room, role, solo = false }: { room: string; role: Role; s
       if (isSkin(sk)) s.skins[other] = sk;
       setPartnerHere(here);
     })
-      .on("broadcast", { event: "pos" }, ({ payload }) => { s.theirs.tx = payload.x; s.theirs.ty = payload.y; if (s.theirs.x < -50) { s.theirs.x = payload.x; s.theirs.y = payload.y; } })
+      .on("broadcast", { event: "pos" }, ({ payload }) => {
+        // HAFIL follows QIFIL's level (e.g. after QIFIL continued a saved game)
+        if (role === "hafil" && typeof payload.l === "number" && payload.l !== s.level && !s.winning) resetLevel(payload.l);
+        s.theirs.tx = payload.x; s.theirs.ty = payload.y; if (s.theirs.x < -50) { s.theirs.x = payload.x; s.theirs.y = payload.y; } })
       .on("broadcast", { event: "box" }, ({ payload }) => { const b = s.boxes[payload.i]; if (b && payload.l === s.level) { b.x = payload.x; b.y = payload.y; b.vy = 0; b.lock = 8; } })
       .on("broadcast", { event: "dead" }, () => { flash(`💥 ${s.names[other]} respawn!`); s.shieldOther = performance.now() + SHIELD_MS; })
       .on("broadcast", { event: "button" }, () => { s.button = true; })
@@ -187,9 +196,18 @@ export function Game({ room, role, solo = false }: { room: string; role: Role; s
         if (sameRow && input.current.right && Math.abs(s.mine.x + PW - b.x) < 8) dx = 3;
         if (sameRow && input.current.left && Math.abs(b.x + BOX - s.mine.x) < 8) dx = -3;
         if (dx) {
-          const nb = { x: b.x + dx, y: b.y, w: BOX, h: BOX };
-          const others = s.boxes.filter((o) => o !== b).map((o) => ({ x: o.x, y: o.y, w: BOX, h: BOX }));
-          if (![...world, ...others, partnerRect].some((r) => overlap(nb, r))) { b.x += dx; b.moved = true; }
+          // push a whole row of touching boxes together (pink + blue at once)
+          const chain = [b];
+          for (;;) {
+            const last = chain[chain.length - 1]!;
+            const next = s.boxes.find((o) => !chain.includes(o) && Math.abs(o.y - last.y) < 10 &&
+              (dx > 0 ? o.x >= last.x + BOX - 2 && o.x <= last.x + BOX + 10 : o.x + BOX <= last.x + 2 && o.x + BOX >= last.x - 10));
+            if (!next) break;
+            chain.push(next);
+          }
+          const others = s.boxes.filter((o) => !chain.includes(o)).map((o) => ({ x: o.x, y: o.y, w: BOX, h: BOX }));
+          const free = chain.every((c) => ![...world, ...others, partnerRect].some((r) => overlap({ x: c.x + dx, y: c.y, w: BOX, h: BOX }, r)));
+          if (free) for (const c of chain) { c.x += dx; c.moved = true; }
         }
         if (b.lock > 0) { b.lock--; continue; }
         b.vy = Math.min(18, b.vy + GRAVITY); b.y += b.vy;
@@ -229,7 +247,7 @@ export function Game({ room, role, solo = false }: { room: string; role: Role; s
       const nowShielded = t < s.shield;
       if (nowShielded !== hudShield) { hudShield = nowShielded; setShieldOn(nowShielded); }
       s.walk += Math.abs(m.vx) > 0.5 ? 1 : 0;
-      if (t - lastSend > 50) { lastSend = t; send("pos", { x: Math.round(m.x), y: Math.round(m.y) });
+      if (t - lastSend > 50) { lastSend = t; send("pos", { x: Math.round(m.x), y: Math.round(m.y), l: s.level });
         s.boxes.forEach((b, i) => { if (b.moved) { b.moved = false; send("box", { i, x: b.x, y: b.y, l: s.level }); } }); }
 
       if (!s.button && (touches(m, L.button.x, L.button.y - 10) || touches(th, L.button.x, L.button.y - 10))) {

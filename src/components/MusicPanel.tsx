@@ -14,8 +14,8 @@ export function MusicPanel({ userId }: { userId: string | undefined }) {
     if (!files?.length || !userId) return;
     setErr("");
     for (const f of Array.from(files)) {
-      if (!f.type.startsWith("audio/")) { setErr(`${f.name} bukan file musik.`); continue; }
-      if (f.size > 20 * 1024 * 1024) { setErr(`${f.name} lebih dari 20 MB.`); continue; }
+      if (!f.type.startsWith("audio/") && !f.type.startsWith("video/")) { setErr(`${f.name} bukan file musik/video.`); continue; }
+      if (f.size > 50 * 1024 * 1024) { setErr(`${f.name} lebih dari 50 MB.`); continue; }
       setBusy(`Mengunggah ${f.name}...`);
       try { await uploadTrack(f, userId); } catch { setErr(`Gagal unggah ${f.name}.`); }
     }
@@ -35,7 +35,7 @@ export function MusicPanel({ userId }: { userId: string | undefined }) {
       <div className="mb-2 flex items-center justify-between">
         <p className="font-pixel text-xs">🎵 MUSIK GAME ({tracks.length})</p>
         <button disabled={!userId || !!busy} onClick={() => input.current?.click()} className="pixel-btn !py-1 text-xs">+ Upload</button>
-        <input ref={input} type="file" accept="audio/*" multiple hidden onChange={(e) => onFiles(e.target.files)} />
+        <input ref={input} type="file" accept="audio/*,video/*" multiple hidden onChange={(e) => onFiles(e.target.files)} />
       </div>
       {busy && <p className="text-xs text-muted-foreground">{busy}</p>}
       {err && <p className="text-xs text-destructive">{err}</p>}
