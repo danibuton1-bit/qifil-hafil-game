@@ -20,6 +20,7 @@ import { Route as AuthenticatedLobbyRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedMabarRouteImport } from './routes/_authenticated/mabar'
 import { Route as AuthenticatedBayoneRoomRouteImport } from './routes/_authenticated/bayone.$room'
 import { Route as AuthenticatedPlayRoomRouteImport } from './routes/_authenticated/play.$room'
+import { Route as AuthenticatedRaceRoomRouteImport } from './routes/_authenticated/race.$room'
 import { Route as AuthenticatedRoomRoomRouteImport } from './routes/_authenticated/room.$room'
 
 const IndexRoute = IndexRouteImport.update({
@@ -76,6 +77,11 @@ const AuthenticatedPlayRoomRoute = AuthenticatedPlayRoomRouteImport.update({
   path: '/play/$room',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedRaceRoomRoute = AuthenticatedRaceRoomRouteImport.update({
+  id: '/race/$room',
+  path: '/race/$room',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedRoomRoomRoute = AuthenticatedRoomRoomRouteImport.update({
   id: '/room/$room',
   path: '/room/$room',
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/mabar': typeof AuthenticatedMabarRoute
   '/bayone/$room': typeof AuthenticatedBayoneRoomRoute
   '/play/$room': typeof AuthenticatedPlayRoomRoute
+  '/race/$room': typeof AuthenticatedRaceRoomRoute
   '/room/$room': typeof AuthenticatedRoomRoomRoute
 }
 export interface FileRoutesByTo {
@@ -106,6 +113,7 @@ export interface FileRoutesByTo {
   '/mabar': typeof AuthenticatedMabarRoute
   '/bayone/$room': typeof AuthenticatedBayoneRoomRoute
   '/play/$room': typeof AuthenticatedPlayRoomRoute
+  '/race/$room': typeof AuthenticatedRaceRoomRoute
   '/room/$room': typeof AuthenticatedRoomRoomRoute
 }
 export interface FileRoutesById {
@@ -121,6 +129,7 @@ export interface FileRoutesById {
   '/_authenticated/mabar': typeof AuthenticatedMabarRoute
   '/_authenticated/bayone/$room': typeof AuthenticatedBayoneRoomRoute
   '/_authenticated/play/$room': typeof AuthenticatedPlayRoomRoute
+  '/_authenticated/race/$room': typeof AuthenticatedRaceRoomRoute
   '/_authenticated/room/$room': typeof AuthenticatedRoomRoomRoute
 }
 export interface FileRouteTypes {
@@ -136,6 +145,7 @@ export interface FileRouteTypes {
     | '/mabar'
     | '/bayone/$room'
     | '/play/$room'
+    | '/race/$room'
     | '/room/$room'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -149,6 +159,7 @@ export interface FileRouteTypes {
     | '/mabar'
     | '/bayone/$room'
     | '/play/$room'
+    | '/race/$room'
     | '/room/$room'
   id:
     | '__root__'
@@ -163,6 +174,7 @@ export interface FileRouteTypes {
     | '/_authenticated/mabar'
     | '/_authenticated/bayone/$room'
     | '/_authenticated/play/$room'
+    | '/_authenticated/race/$room'
     | '/_authenticated/room/$room'
   fileRoutesById: FileRoutesById
 }
@@ -255,6 +267,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPlayRoomRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/race/$room': {
+      id: '/_authenticated/race/$room'
+      path: '/race/$room'
+      fullPath: '/race/$room'
+      preLoaderRoute: typeof AuthenticatedRaceRoomRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/room/$room': {
       id: '/_authenticated/room/$room'
       path: '/room/$room'
@@ -270,6 +289,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMabarRoute: typeof AuthenticatedMabarRoute
   AuthenticatedBayoneRoomRoute: typeof AuthenticatedBayoneRoomRoute
   AuthenticatedPlayRoomRoute: typeof AuthenticatedPlayRoomRoute
+  AuthenticatedRaceRoomRoute: typeof AuthenticatedRaceRoomRoute
   AuthenticatedRoomRoomRoute: typeof AuthenticatedRoomRoomRoute
 }
 
@@ -278,6 +298,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMabarRoute: AuthenticatedMabarRoute,
   AuthenticatedBayoneRoomRoute: AuthenticatedBayoneRoomRoute,
   AuthenticatedPlayRoomRoute: AuthenticatedPlayRoomRoute,
+  AuthenticatedRaceRoomRoute: AuthenticatedRaceRoomRoute,
   AuthenticatedRoomRoomRoute: AuthenticatedRoomRoomRoute,
 }
 
