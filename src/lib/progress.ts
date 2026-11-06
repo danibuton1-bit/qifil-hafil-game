@@ -20,6 +20,8 @@ export async function saveCloud(kind: Kind, n: number) {
     const { data: s } = await supabase.auth.getSession();
     const uid = s.session?.user.id;
     if (!uid) return;
-    await supabase.from("game_progress").upsert({ user_id: uid, [kind]: clamp(n), updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+    const lvl = clamp(n), updated_at = new Date().toISOString();
+    const row = kind === "solo_level" ? { user_id: uid, solo_level: lvl, updated_at } : { user_id: uid, online_level: lvl, updated_at };
+    await supabase.from("game_progress").upsert(row, { onConflict: "user_id" });
   } catch { /* offline: local copy still kept */ }
 }
