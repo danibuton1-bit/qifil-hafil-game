@@ -18,7 +18,7 @@ describe("game rules", () => {
   });
 });
 
-import { levelAt, MAX_LEVEL, MAX_GAP, JUMP, GRAVITY, SPEED, GY } from "./game";
+import { levelAt, MAX_LEVEL, MAX_GAP, JUMP, GRAVITY, SPEED, GY, BOX, BOX_WALL } from "./game";
 describe("levels", () => {
   const reach = (JUMP * JUMP) / (2 * GRAVITY);
   it("there are 100 levels and later ones are longer", () => {
@@ -37,11 +37,20 @@ describe("levels", () => {
       for (const p of levelAt(n).platforms) {
         const h = GY - p.y;
         if (h <= reach - 20) continue;
+        if (h === BOX_WALL) continue; // box stage: climbed with the pink/blue boxes
         // a tall block must have a helper step directly before it at half its height
         const helper = levelAt(n).platforms.find((q) => q.x + q.w === p.x && GY - q.y === h / 2);
         expect(helper).toBeDefined();
       }
     }
+  });
+});
+
+describe("box stage", () => {
+  const reach = (JUMP * JUMP) / (2 * GRAVITY);
+  it("wooden block is too tall to jump but reachable from a box", () => {
+    expect(BOX_WALL).toBeGreaterThan(reach);
+    expect(BOX_WALL).toBeLessThan(reach + BOX - 10);
   });
 });
 

@@ -25,6 +25,8 @@ export type Level = {
   bridges: { x: number; w: number }[]; // hole with a pressure button on each side
 };
 export const BOX = 44;
+/** Wooden block behind the boxes: taller than a jump, lower than box + jump. */
+export const BOX_WALL = 140;
 
 export const MAX_LEVEL = 100;
 export const GY = 640; // ground top
@@ -70,9 +72,11 @@ export function makeLevel(n: number): Level {
       const w = 40 + Math.round(d * 40);
       spikes.push({ x, y: GY - 16, w, h: 16 }); x += w + 160;
     } else if (k === "box") {
-      boxes.push({ x: x, y: GY - BOX, color: "pink" }, { x: x + 70, y: GY - BOX, color: "biru" });
-      platforms.push({ x: x + 260, y: GY - 100, w: 150, h: 100 });
-      x += 260 + 150 + 160;
+      // two boxes side by side (pushable together) in front of a wooden block too tall to jump:
+      // push a box next to it, stand on the box, then jump up
+      boxes.push({ x: x, y: GY - BOX, color: "pink" }, { x: x + BOX + 6, y: GY - BOX, color: "biru" });
+      platforms.push({ x: x + 300, y: GY - BOX_WALL, w: 150, h: BOX_WALL });
+      x += 300 + 150 + 160;
     } else if (k === "bridge") {
       const w = 240 + Math.round(d * 60);
       x += 100; bridges.push({ x, w }); hole(w); x += 120;
