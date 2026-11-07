@@ -19,8 +19,8 @@ export const Route = createFileRoute("/_authenticated/mabar")({
   component: Mabar,
 });
 
-type Seat = { id: string; name: string; ready: boolean; at: number };
-type Mode = "bayone" | "coop";
+type Seat = { id: string; name: string; ready: boolean; at: number; drone?: boolean };
+type Mode = "bayone" | "coop" | "race";
 
 function Mabar() {
   const me = useProfile();
@@ -32,6 +32,8 @@ function Mabar() {
   const [mode, setMode] = useState<Mode>("bayone");
   const [seats, setSeats] = useState<Seat[]>([]);
   const [msg, setMsg] = useState("");
+  const [drone, setDrone] = useState(false);
+  const [lvl, setLvl] = useState(1);
   const ch = useRef<RealtimeChannel | null>(null);
   const joinedAt = useRef(Date.now());
 
@@ -43,30 +45,32 @@ function Mabar() {
       setSeats(Object.values(st).map((v) => v[0]!).filter(Boolean).sort((a, b) => a.at - b.at));
     })
       .on("broadcast", { event: "mode" }, ({ payload }) => setMode(payload.mode))
-      .on("broadcast", { event: "start" }, ({ payload }) => go(payload.mode, payload.order))
+      .on("broadcast", { event: "start" }, ({ payload }) => go(payload.mode, payload.order, payload.drones, payload.level))
       .subscribe((s) => { if (s === "SUBSCRIBED") void c.track({ id: me.id, name: me.username, ready: false, at: joinedAt.current }); });
     ch.current = c;
     return () => { supabase.removeChannel(c); ch.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, me]);
 
-  const go = (m: Mode, order: string[]) => {
+  const go = (m: Mode, order: string[], drones: string[] = [], level = 1) => {
     const i = order.indexOf(me?.id ?? "");
     if (i < 0) return;
+    if (m === "race") { navigate({ to: "/race/$room", params: { room: code }, search: { slot: i, drone: drones.includes(me!.id), level } }); return; }
     if (m === "bayone") navigate({ to: "/bayone/$room", params: { room: code }, search: { slot: i } });
     else if (i < 2) navigate({ to: "/play/$room", params: { room: `m${code}` }, search: { role: i === 0 ? "qifil" : "hafil" } });
     else setMsg("Co-op berjalan untuk 2 pemain pertama. Kamu bisa main Bay One di room ini.");
   };
 
-  const toggle = () => { const r = !ready; setReady(r); void ch.current?.track({ id: me!.id, name: me!.username, ready: r, at: joinedAt.current }); };
+  const toggle = () => { const r = !ready; setReady(r); void ch.current?.track({ id: me!.id, name: me!.username, ready: r, at: joinedAt.current, drone }); };
+  const toggleDrone = () => { const d = !drone; setDrone(d); void ch.current?.track({ id: me!.id, name: me!.username, ready, at: joinedAt.current, drone: d }); };
   const pickMode = (m: Mode) => { setMode(m); void ch.current?.send({ type: "broadcast", event: "mode", payload: { mode: m } }); };
   const full = seats.length > MAX_PLAYERS;
   const myIdx = seats.findIndex((s) => s.id === me?.id);
-  const ok = canStart(seats) && (mode === "bayone" || seats.length === 2);
+  const ok = canStart(seats) && (mode === "bayone" || (mode === "race" ? seats.some((s) => !s.drone) : seats.length === 2));
   const start = () => {
     const order = seats.map((s) => s.id);
-    void ch.current?.send({ type: "broadcast", event: "start", payload: { mode, order } });
-    go(mode, order);
+    void ch.current?.send({ type: "broadcast", event: "start", payload: { mode, order, drones: seats.filter((s) => s.drone).map((s) => s.id), level: lvl } });
+    go(mode, order, seats.filter((s) => s.drone).map((s) => s.id), lvl);
   };
   const share = async () => {
     const t = `Ayo mabar QIFIL HAFIL! Kode Room: ${code}`;
@@ -100,17 +104,24 @@ function Mabar() {
           <div className="mt-2 flex flex-col gap-1">
             {seats.slice(0, MAX_PLAYERS).map((s, i) => (
               <div key={s.id} className="flex justify-between text-sm">
-                <span>{i === 0 ? "👑 " : ""}<b>{s.name}</b> {s.id === me?.id ? "(Kamu)" : ""}</span>
+                <span>{i === 0 ? "👑 " : ""}<b>{s.name}</b>{s.drone ? " 🎥" : ""} {s.id === me?.id ? "(Kamu)" : ""}</span>
                 <span>{s.ready ? "✅ READY" : "❌ BELUM"}</span>
               </div>
             ))}
           </div>
-          <p className="mt-3 text-xs">Mode: <b>{mode === "bayone" ? "⚔️ BAY ONE - SALING TEMBAK" : "🧩 CO-OP (2 pemain)"}</b></p>
+          <p className="mt-3 text-xs">Mode: <b>{mode === "bayone" ? "⚔️ BAY ONE - SALING TEMBAK" : mode === "race" ? `🏁 TURNAMEN BALAPAN - LEVEL ${lvl}` : "🧩 CO-OP (2 pemain)"}</b></p>
           {host && (
             <div className="mt-2 flex gap-2">
               <button onClick={() => pickMode("bayone")} className="pixel-btn flex-1 !py-1">⚔️ BAY ONE</button>
               <button onClick={() => pickMode("coop")} className="pixel-btn flex-1 !py-1">🧩 CO-OP</button>
+              <button onClick={() => pickMode("race")} className="pixel-btn flex-1 !py-1">🏁 TURNAMEN</button>
             </div>
+          )}
+          {host && mode === "race" && (
+            <label className="mt-2 flex items-center gap-2 text-xs">Level: <input type="number" min={1} max={100} value={lvl} onChange={(e) => setLvl(Math.max(1, Math.min(100, Number(e.target.value) || 1)))} className="pixel-input !w-20" /></label>
+          )}
+          {mode === "race" && (
+            <button onClick={toggleDrone} className="pixel-btn mt-2 w-full">{drone ? "🏃 JADI PEMAIN" : "🎥 JADI KAMERA DRONE"}</button>
           )}
           <button onClick={toggle} className="pixel-btn mt-3 w-full">{ready ? "BATAL READY ❌" : "SAYA READY ✅"}</button>
           {host ? (
