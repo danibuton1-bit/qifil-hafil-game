@@ -15,7 +15,7 @@ const QUICK = ["Sini!", "Tumpuk!", "Injak tombol!", "Ambil kunci!", "Ke pintu!",
 
 let audioCtx: AudioContext | null = null;
 /** Short rising "tuwing" blip, like Pico Park's jump. */
-function playJump() {
+export function playJump() {
   try {
     audioCtx ??= new AudioContext();
     const a = audioCtx;
