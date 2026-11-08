@@ -58,6 +58,7 @@ function Home() {
         ) : (
           <button disabled className="pixel-btn">🔒 MABAR 1-5 - Butuh Internet</button>
         )}
+        {online && <Link to="/mabar" className="pixel-btn">🏁 TURNAMEN BALAPAN (2-5 ORANG)</Link>}
         <Link to="/bayone-solo" className="pixel-btn">⚔️ BAY ONE - LAWAN 4 BOT</Link>
       </div>
     </main>
