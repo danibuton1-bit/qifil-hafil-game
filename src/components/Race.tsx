@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/lib/use-profile";
-import { W, H, PW, PH, GY, levelAt, step, hazardCheck, touches, SKINS, type Body, type Input, type Skin } from "@/lib/game";
-import { raceSolids, netColor, NET_HEX, ease, fitZoom, leader } from "@/lib/race";
+import { W, H, PW, PH, GY, step, hazardCheck, touches, SKINS, type Body, type Input, type Skin } from "@/lib/game";
+import { raceMap, ghostSpeed, caught, GHOST_DELAY, netColor, NET_HEX, ease, fitZoom, leader } from "@/lib/race";
 import { playJump } from "@/components/Game";
 import { useGameMusic } from "@/lib/music";
 
@@ -21,13 +21,16 @@ export function Race({ room, slot, drone, level }: { room: string; slot: number;
   const [mode, setModeState] = useState<CamMode>("auto");
   const setMode = (m: CamMode) => { camMode.current = m; setModeState(m); };
   const [win, setWin] = useState<string | null>(null);
+  const [out, setOut] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
   const [list, setList] = useState<Other[]>([]);
   const music = useGameMusic();
 
   useEffect(() => {
     if (!me) return;
-    const L = levelAt(level);
-    const solids = raceSolids(L);
+    const L = raceMap(level);
+    const solids = L.solids;
+    let out = false; const t0 = Date.now(); const ghost = { x: -260, y: GY - 80 };
     const others = new Map<string, Other>();
     const skin = SKIN_LIST[slot % SKIN_LIST.length]!;
     let b: Body = { x: L.spawn[0] + slot * 10, y: L.spawn[1], vx: 0, vy: 0, onGround: false };
@@ -42,6 +45,7 @@ export function Race({ room, slot, drone, level }: { room: string; slot: number;
     const ch = supabase.channel(`race:${room}`, { config: { broadcast: { self: true } } });
     ch.on("broadcast", { event: "st" }, ({ payload }) => { if (payload.id !== me.id) others.set(payload.id, { ...payload, at: Date.now() }); })
       .on("broadcast", { event: "png" }, ({ payload }) => { if (payload.id === me.id) ping = Date.now() - payload.t; })
+      .on("broadcast", { event: "out" }, ({ payload }) => { others.delete(payload.id); setNote(`👻 ${payload.name} Tertangkap Hantu!`); setTimeout(() => setNote(null), 2500); })
       .on("broadcast", { event: "win" }, ({ payload }) => { done = true; setWin(payload.name); })
       .subscribe();
     const pinger = setInterval(() => { if (!drone) void ch.send({ type: "broadcast", event: "png", payload: { id: me.id, t: Date.now() } }); }, 2000);
@@ -50,7 +54,13 @@ export function Race({ room, slot, drone, level }: { room: string; slot: number;
     const loop = (t: number) => {
       raf = requestAnimationFrame(loop);
       const i = input.current;
-      if (!drone && !done) {
+      const spec = drone || out;
+      if (!done) ghost.x += ghostSpeed(Date.now() - t0);
+      if (!spec && !done && caught(ghost.x + 60, b.x)) {
+        out = true; setOut(true); setMode("auto"); setNote(`👻 ${me.username} Tertangkap Hantu!`); setTimeout(() => setNote(null), 2500);
+        void ch.send({ type: "broadcast", event: "out", payload: { id: me.id, name: me.username } });
+      }
+      if (!spec && !done) {
         const wasGround = b.onGround;
         b = step(b, i, solids, L.width);
         if (wasGround && i.up && b.vy < 0) playJump();
@@ -68,7 +78,7 @@ export function Race({ room, slot, drone, level }: { room: string; slot: number;
 
       // everyone racing (for leader tracking)
       const racers = [...others.values()].map((o) => ({ x: o.x, y: o.y, key: o.key, id: o.id }));
-      if (!drone) racers.push({ x: b.x, y: b.y, key, id: me.id });
+      if (!spec) racers.push({ x: b.x, y: b.y, key, id: me.id });
       const lead = racers[leader(racers)];
 
       // physical drone hovers above the leader with a gentle bob
@@ -79,7 +89,7 @@ export function Race({ room, slot, drone, level }: { room: string; slot: number;
       let tz = 1, tx = 0, ty = 0;
       const m = camMode.current;
       const focus = (x: number, y: number, z: number) => { tz = z; tx = x - W / z / 2; ty = y - H / z / 2; };
-      if (!drone) focus(b.x + W / 6, b.y - 40, 1);
+      if (!spec) focus(b.x + W / 6, b.y - 40, 1);
       else if (m === "wide") { tz = fitZoom(L.width, W); tx = 0; ty = H - H / tz; }
       else if (m === "free") {
         free.x += (i.left ? -14 : i.right ? 14 : 0) / free.z;
@@ -95,8 +105,8 @@ export function Race({ room, slot, drone, level }: { room: string; slot: number;
       const vw = W / tz, vh = H / tz;
       tx = Math.max(0, Math.min(Math.max(0, L.width - vw), tx));
       ty = Math.min(H - vh, Math.max(H - vh - 400, ty));
-      if (m === "free" && drone) { free.x = tx; free.y = ty; }
-      const k = drone ? 0.06 : 0.15;
+      if (m === "free" && spec) { free.x = tx; free.y = ty; }
+      const k = spec ? 0.06 : 0.15;
       cam.z = ease(cam.z, tz, k); cam.x = ease(cam.x, tx, k); cam.y = ease(cam.y, ty, k);
 
       const g = cv.current?.getContext("2d"); if (!g) return;
@@ -131,8 +141,21 @@ export function Race({ room, slot, drone, level }: { room: string; slot: number;
         g.textAlign = "left";
       };
       for (const o of others.values()) drawP(o.x, o.y, o.s, o.name, o.key, o.ping, Date.now() - o.at > 2000, Math.abs(o.vx ?? 0) > 0.5, !!o.air, t / 16, false);
-      if (!drone) drawP(b.x, b.y, skin, me.username, key, ping, false, Math.abs(b.vx) > 0.5, !b.onGround, walk, Date.now() < shield);
+      if (!spec) drawP(b.x, b.y, skin, me.username, key, ping, false, Math.abs(b.vx) > 0.5, !b.onGround, walk, Date.now() < shield);
 
+      // ghost chasing from behind
+      const alive = racers.filter((r) => r.id !== me.id || !spec);
+      const back = alive.reduce((m2, r) => (r.x < m2.x ? r : m2), alive[0] ?? { x: 0, y: GY - 80 });
+      ghost.y = ease(ghost.y, back.y - 20, 0.05);
+      if (Date.now() - t0 > GHOST_DELAY - 1000) {
+        const gx = ghost.x, gy = ghost.y + Math.sin(t / 300) * 8;
+        g.globalAlpha = 0.85; g.fillStyle = "#F5F3FF";
+        g.beginPath(); g.arc(gx + 30, gy + 30, 30, Math.PI, 0); g.lineTo(gx + 60, gy + 75);
+        for (let k2 = 0; k2 < 4; k2++) g.lineTo(gx + 52 - k2 * 15, gy + (k2 % 2 ? 75 : 62));
+        g.lineTo(gx, gy + 75); g.fill(); g.globalAlpha = 1;
+        g.fillStyle = "#1E1B4B"; g.fillRect(gx + 16, gy + 22, 8, 12); g.fillRect(gx + 36, gy + 22, 8, 12);
+        g.font = "bold 14px monospace"; g.fillText("👻", gx + 20, gy - 6);
+      }
       // drone body: spotlight, arms, spinning rotors, blinking LEDs
       const dx = bot.x, dy = bot.y;
       const spot = g.createLinearGradient(0, dy, 0, dy + 260);
@@ -152,7 +175,7 @@ export function Race({ room, slot, drone, level }: { room: string; slot: number;
       g.fillStyle = on ? "#14532d" : "#22C55E"; g.beginPath(); g.arc(dx + 18, dy - 2, 3, 0, 7); g.fill();
       g.restore();
 
-      if (drone) {
+      if (spec) {
         g.strokeStyle = "rgba(255,255,255,0.8)"; g.lineWidth = 3;
         const c = 40; for (const [x, y, sx, sy] of [[20, 20, 1, 1], [W - 20, 20, -1, 1], [20, H - 20, 1, -1], [W - 20, H - 20, -1, -1]] as const) {
           g.beginPath(); g.moveTo(x, y + sy * c); g.lineTo(x, y); g.lineTo(x + sx * c, y); g.stroke();
@@ -165,7 +188,7 @@ export function Race({ room, slot, drone, level }: { room: string; slot: number;
     raf = requestAnimationFrame(loop);
     const kd = (e: KeyboardEvent, v: boolean) => {
       const m: Record<string, keyof Input> = { ArrowLeft: "left", a: "left", ArrowRight: "right", d: "right", ArrowUp: "up", w: "up", " ": "up", ArrowDown: "down", s: "down" };
-      const k = m[e.key]; if (k) { input.current[k] = v; if (drone && v && camMode.current !== "free" && camMode.current !== "wide") setMode("free"); }
+      const k = m[e.key]; if (k) { input.current[k] = v; if ((drone || out) && v && camMode.current !== "free" && camMode.current !== "wide") setMode("free"); }
       if (e.key === "+" || e.key === "=") zoomIn.current = v;
       if (e.key === "-") zoomOut.current = v;
     };
@@ -180,7 +203,7 @@ export function Race({ room, slot, drone, level }: { room: string; slot: number;
     onPointerUp: () => set(false), onPointerLeave: () => set(false), onPointerCancel: () => set(false),
   });
   const hold = (k: keyof Input, label: string) => (
-    <button className="pixel-btn flex-1 select-none !py-3" {...press((v) => { input.current[k] = v; if (drone && v && camMode.current !== "free") setMode("free"); })}>{label}</button>
+    <button className="pixel-btn flex-1 select-none !py-3" {...press((v) => { input.current[k] = v; if ((drone || out) && v && camMode.current !== "free") setMode("free"); })}>{label}</button>
   );
   const tab = (m: CamMode, label: string) => (
     <button onClick={() => setMode(m)} className={`${mode === m ? "pixel-btn" : "tab-off"} !w-auto !py-1 px-2 text-xs`}>{label}</button>
@@ -199,8 +222,10 @@ export function Race({ room, slot, drone, level }: { room: string; slot: number;
           <button onClick={() => nav({ to: "/mabar" })} className="pixel-btn !py-1">← Keluar</button>
         </div>
       </div>
+      {note && <p className="font-pixel text-xs">{note}</p>}
+      {out && !drone && <p className="text-xs">👀 Kamu tereliminasi — sekarang jadi penonton drone.</p>}
       <canvas ref={cv} width={W} height={H} className="w-full max-w-3xl rounded-lg border-4 border-foreground" />
-      {drone && (
+      {(drone || out) && (
         <div className="flex w-full max-w-3xl flex-wrap gap-1">
           {tab("auto", "🔄 AUTO")}{tab("wide", "🗺️ SEISI ARENA")}{tab("free", "🕹️ BEBAS")}
           {list.map((o) => <span key={o.id}>{tab(o.id, `👁️ ${o.name}`)}</span>)}
@@ -208,7 +233,7 @@ export function Race({ room, slot, drone, level }: { room: string; slot: number;
       )}
       <div className="flex w-full max-w-3xl gap-2">
         {hold("left", "◀")}{hold("right", "▶")}
-        {drone ? <>
+        {(drone || out) ? <>
           {hold("up", "▲")}{hold("down", "▼")}
           <button className="pixel-btn flex-1 select-none !py-3" {...press((v) => { zoomIn.current = v; if (v) setMode("free"); })}>🔍+</button>
           <button className="pixel-btn flex-1 select-none !py-3" {...press((v) => { zoomOut.current = v; if (v) setMode("free"); })}>🔍−</button>

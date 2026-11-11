@@ -26,3 +26,22 @@ describe("drone camera", () => {
     expect(leader([])).toBe(-1);
   });
 });
+
+import { raceMap, ghostSpeed, caught } from "./race";
+describe("hantu & 3 jalur", () => {
+  it("hantu diam 3 detik lalu makin cepat", () => {
+    expect(ghostSpeed(2000)).toBe(0);
+    expect(ghostSpeed(3000)).toBe(2);
+    expect(ghostSpeed(60000)).toBeGreaterThan(ghostSpeed(10000));
+  });
+  it("pemain tertangkap jika hantu menyusul", () => {
+    expect(caught(500, 480)).toBe(true);
+    expect(caught(500, 520)).toBe(false);
+  });
+  it("kunci dan pintu di titik temu akhir, jalur tengah buntu", () => {
+    const m = raceMap(1);
+    expect(m.key.x).toBeGreaterThan(m.wall.x);
+    expect(m.door.x).toBeGreaterThan(m.key.x);
+    expect(m.spikes.length).toBeGreaterThan(0);
+  });
+});
