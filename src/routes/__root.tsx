@@ -89,7 +89,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" },
+      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@600;800;900&family=Rajdhani:wght@500;700&display=swap" },
       { rel: "stylesheet", href: appCss },
       { rel: "icon", type: "image/png", href: "/favicon.png" },
       { rel: "apple-touch-icon", href: "/icon-192.png" },
@@ -119,11 +119,27 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   useEffect(() => { void registerPwa(); }, []);
+  useEffect(() => {
+    // Auto-rotate: browsers only allow locking orientation in fullscreen, so lock on first tap.
+    const go = async () => {
+      try {
+        if (!document.fullscreenElement && window.matchMedia("(pointer: coarse)").matches) await document.documentElement.requestFullscreen?.();
+        await (screen.orientation as unknown as { lock?: (o: string) => Promise<void> }).lock?.("landscape");
+      } catch { /* not supported */ }
+    };
+    window.addEventListener("pointerdown", go, { once: true });
+    return () => window.removeEventListener("pointerdown", go);
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
+      <div className="rotate-gate" aria-live="polite">
+        <div className="rotate-phone">📱</div>
+        <p className="font-display text-lg">PUTAR HP KE POSISI MIRING</p>
+        <p className="text-sm opacity-70">Game dimainkan dalam mode layar lebar</p>
+      </div>
     </QueryClientProvider>
   );
 }
